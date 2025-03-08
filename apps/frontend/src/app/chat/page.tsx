@@ -191,7 +191,7 @@ export default function ChatPage() {
     }, [status]);
 
     return (
-        <div className="flex min-h-screen flex-col gap-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
+        <div className="bg-linear-to-br flex min-h-screen flex-col gap-4 from-indigo-50 via-purple-50 to-pink-50 p-4">
             {/* Video section */}
             <div className="flex w-full flex-col gap-4">
                 <div className="grid h-[70vh] grid-cols-1 gap-4 md:grid-cols-2">
@@ -205,10 +205,10 @@ export default function ChatPage() {
                             className="absolute inset-0 h-full w-full object-cover"
                             poster="/placeholder.svg?height=600&width=800"
                         />
-                        <div className="absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white backdrop-blur-sm">
+                        <div className="backdrop-blur-xs absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white">
                             <div className="flex items-center gap-3">
                                 <Avatar>
-                                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500">
+                                    <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500">
                                         {username.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
@@ -265,10 +265,10 @@ export default function ChatPage() {
 
                         {/* Peer info overlay */}
                         {status === "connected" && peerUsername && (
-                            <div className="absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white backdrop-blur-sm">
+                            <div className="backdrop-blur-xs absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white">
                                 <div className="flex items-center gap-3">
                                     <Avatar>
-                                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500">
+                                        <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500">
                                             {peerUsername.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
@@ -310,7 +310,7 @@ export default function ChatPage() {
             </div>
 
             {/* Text chat section */}
-            <div className="flex h-[30vh] w-full flex-col rounded-xl bg-white/80 shadow-xl backdrop-blur-sm">
+            <div className="backdrop-blur-xs flex h-[30vh] w-full flex-col rounded-xl bg-white/80 shadow-xl">
                 <div className="border-b p-4">
                     <h2 className="font-semibold">Chat</h2>
                 </div>
@@ -339,7 +339,7 @@ export default function ChatPage() {
                                     <div
                                         className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                                             message.sender === "me"
-                                                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                                                ? "bg-linear-to-r from-purple-600 to-pink-600 text-white"
                                                 : "bg-gray-200 text-gray-800"
                                         }`}
                                     >
