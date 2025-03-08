@@ -15,13 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Serendipity - Random Video Chat with Strangers | Omegle Alternative",
+    title: "Xylo - Random Video Chat with Strangers | Omegle Alternative",
     description:
-        "Connect with random people worldwide through video chat on Serendipity. A safe and fun Omegle alternative to meet new friends, have meaningful conversations, and create unexpected connections.",
+        "Connect with random people worldwide through video chat on Xylo. A safe and fun Omegle alternative to meet new friends, have meaningful conversations, and create unexpected connections.",
     keywords:
         "video chat, random chat, Omegle alternative, meet strangers, video calling, anonymous chat, make friends online",
     openGraph: {
-        title: "Serendipity - Random Video Chat with Strangers",
+        title: "Xylo - Random Video Chat with Strangers",
         description:
             "Connect with random people worldwide through video chat. A safe and fun way to meet new friends and have meaningful conversations.",
         type: "website",
