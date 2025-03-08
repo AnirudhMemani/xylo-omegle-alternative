@@ -1,20 +1,29 @@
 {
-  "name": "xylo",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
-  },
-  "devDependencies": {
-    "prettier": "^3.5.3",
-    "turbo": "^2.4.4",
-    "typescript": "5.8.2"
-  },
-  "packageManager": "pnpm@9.0.0",
-  "engines": {
-    "node": ">=18"
-  }
+    "name": "xylo",
+    "private": true,
+    "scripts": {
+        "build": "turbo run build",
+        "dev": "turbo run dev",
+        "lint": "turbo run lint",
+        "format": "prettier --write",
+        "check-types": "turbo run check-types",
+        "prepare": "husky install"
+    },
+    "devDependencies": {
+        "husky": "^8.0.0",
+        "lint-staged": "^15.4.3",
+        "prettier": "^3.5.3",
+        "prettier-plugin-tailwindcss": "^0.6.11",
+        "turbo": "^2.4.4",
+        "typescript": "5.8.2"
+    },
+    "lint-staged": {
+        "*.{js,jsx,ts,tsx,json,css,html,md,ejs}": [
+            "pnpm run format"
+        ]
+    },
+    "packageManager": "pnpm@9.0.0",
+    "engines": {
+        "node": ">=18"
+    }
 }
