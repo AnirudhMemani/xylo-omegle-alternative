@@ -9,7 +9,7 @@ interface Room {
 
 export class RoomManager {
     private rooms: Map<string, Room>;
-    private userRooms: Map<string, string>; // Maps socketId to roomId
+    private userRooms: Map<string, string>;
 
     constructor() {
         this.rooms = new Map<string, Room>();
@@ -24,7 +24,6 @@ export class RoomManager {
             user2,
         });
 
-        // Track which room each user is in
         this.userRooms.set(user1.socket.id, roomId);
         this.userRooms.set(user2.socket.id, roomId);
 
@@ -44,11 +43,9 @@ export class RoomManager {
         const room = this.rooms.get(roomId);
         if (!room) return;
 
-        // Notify the other user that their peer has left
         const otherUser = room.user1.socket.id === socketId ? room.user2 : room.user1;
         otherUser.socket.emit("peer-left");
 
-        // Clean up room
         this.rooms.delete(roomId);
         this.userRooms.delete(room.user1.socket.id);
         this.userRooms.delete(room.user2.socket.id);

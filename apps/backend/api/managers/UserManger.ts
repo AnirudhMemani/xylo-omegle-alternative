@@ -21,9 +21,8 @@ export class UserManager {
     }
 
     addUser(socket: Socket) {
-        // Only register the socket without adding to queue
         this.users.push({
-            name: "anonymous", // Will be updated when join-room is called
+            name: "anonymous",
             socket,
         });
         this.initHandlers(socket);
@@ -55,11 +54,9 @@ export class UserManager {
     }
 
     initHandlers(socket: Socket) {
-        // Handle join-room event
         socket.on("join-room", ({ username, interests, location }) => {
             console.log(`User ${username} joining room with interests: ${interests}`);
 
-            // Update user info
             const userIndex = this.users.findIndex((u) => u.socket.id === socket.id);
             if (userIndex !== -1) {
                 this.users[userIndex].name = username;
@@ -67,7 +64,6 @@ export class UserManager {
                 this.users[userIndex].location = location;
             }
 
-            // Add to queue
             if (!this.queue.includes(socket.id)) {
                 this.queue.push(socket.id);
             }
@@ -92,12 +88,9 @@ export class UserManager {
             this.roomManager.onUserInfo(roomId, username, interests, location, socket.id);
         });
 
-        // Handle skip-user event
         socket.on("skip-user", () => {
-            // Remove from current room if any
             this.roomManager.leaveRoom(socket.id);
 
-            // Add back to queue
             if (!this.queue.includes(socket.id)) {
                 this.queue.push(socket.id);
                 socket.emit("lobby");
@@ -105,15 +98,11 @@ export class UserManager {
             }
         });
 
-        // Add new handler for stop-searching
         socket.on("stop-searching", () => {
-            // Remove from current room if any
             this.roomManager.leaveRoom(socket.id);
 
-            // Remove from queue
             this.queue = this.queue.filter((id) => id !== socket.id);
 
-            // Notify client they're no longer in queue
             socket.emit("search-stopped");
         });
     }

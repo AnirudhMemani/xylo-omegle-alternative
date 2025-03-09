@@ -22,25 +22,20 @@ type Message = {
     timestamp: Date;
 };
 
-// Update the UserStatus type to include "idle"
 type UserStatus = "connecting" | "connected" | "searching" | "idle";
 
 export default function ChatPage() {
     const router = useRouter();
 
-    // Get user data from store
     const { username, interests, localVideoTrack, localAudioTrack, location } = useUserStore();
 
-    // Use the imported newSocket directly instead of creating a new state
     const [status, setStatus] = useState<UserStatus>("connecting");
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [peerCountry, setPeerCountry] = useState<string | null>(null);
     const [peerUsername, setPeerUsername] = useState<string | null>(null);
     const [peerInterests, setPeerInterests] = useState<string[]>([]);
-    // const [isMuted, setIsMuted] = useState<boolean>(false);
 
-    // WebRTC states
     const [sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
     const [receivingPc, setReceivingPc] = useState<RTCPeerConnection | null>(null);
     const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
@@ -60,17 +55,14 @@ export default function ChatPage() {
 
     const resetRemoteVideo = () => {
         if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-            // Clear all tracks from the MediaStream
             const stream = remoteVideoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach((track) => {
                 track.stop();
             });
-            // Set srcObject to null to fully reset
             remoteVideoRef.current.srcObject = null;
         }
     };
 
-    // Initialize connection and check for user data
     useEffect(() => {
         if (!username || !localVideoTrack) {
             router.push("/");
@@ -81,7 +73,6 @@ export default function ChatPage() {
 
         setSocket(newSocket);
 
-        // Socket event handlers
         newSocket.on("send-offer", async ({ roomId }) => {
             console.log("Sending offer");
             setStatus("connected");
@@ -117,7 +108,6 @@ export default function ChatPage() {
                 pc.addTrack(localAudioTrack);
             }
 
-            // Send user info to peer
             newSocket.emit("user-info", {
                 roomId,
                 username,
@@ -136,14 +126,12 @@ export default function ChatPage() {
             pc.ontrack = (event: RTCTrackEvent) => {
                 const track = event.track;
 
-                // Check track kind
                 if (track.kind === "audio") {
                     setRemoteAudioTrack(track);
                 } else if (track.kind === "video") {
                     setRemoteVideoTrack(track);
                 }
 
-                // Add track to remote video element
                 if (remoteVideoRef.current) {
                     if (!remoteVideoRef.current.srcObject) {
                         remoteVideoRef.current.srcObject = new MediaStream();
@@ -173,7 +161,6 @@ export default function ChatPage() {
                 sdp: sdp,
             });
 
-            // Send user info to peer
             newSocket.emit("user-info", {
                 roomId,
                 username,
@@ -196,7 +183,6 @@ export default function ChatPage() {
             addSystemMessage("Looking for someone to chat with...");
         });
 
-        // Add handler for search-stopped event
         newSocket.on("search-stopped", () => {
             setInLobby(false);
             setStatus("idle");
@@ -217,7 +203,6 @@ export default function ChatPage() {
             }
         });
 
-        // Handle peer user info
         newSocket.on("user-info", ({ username: peerName, interests: peerTags, location: peerLocation }) => {
             setPeerUsername(peerName);
             setPeerInterests(peerTags || []);
@@ -225,7 +210,6 @@ export default function ChatPage() {
             clearAndAddSystemMessage(`You are now connected with ${peerName}`);
         });
 
-        // Handle chat messages
         newSocket.on("chat-message", ({ message }) => {
             const newMsg: Message = {
                 id: Date.now().toString(),
@@ -236,11 +220,9 @@ export default function ChatPage() {
             setMessages((prev) => [...prev, newMsg]);
         });
 
-        // Handle peer left event
         newSocket.on("peer-left", () => {
             console.log("Peer left the chat");
 
-            // Clean up connections
             if (sendingPc) {
                 sendingPc.close();
                 setSendingPc(null);
@@ -252,24 +234,19 @@ export default function ChatPage() {
 
             resetRemoteVideo();
 
-            // Reset state
             setRemoteVideoTrack(null);
             setRemoteAudioTrack(null);
             setPeerUsername(null);
             setPeerCountry(null);
             setPeerInterests([]);
 
-            // Add system message
             addSystemMessage("Your chat partner has disconnected.");
 
-            // Automatically start searching for a new person
             searchForPeer(newSocket);
         });
 
-        // Start searching for a peer
         searchForPeer(newSocket);
 
-        // Cleanup on unmount
         return () => {
             if (sendingPc) {
                 sendingPc.close();
@@ -282,7 +259,6 @@ export default function ChatPage() {
         };
     }, [username, localVideoTrack, localAudioTrack, interests, location, router]);
 
-    // Set up local video
     useEffect(() => {
         if (localVideoRef.current && localVideoTrack) {
             const stream = new MediaStream();
@@ -297,7 +273,6 @@ export default function ChatPage() {
 
     const skipUser = () => {
         if (socket) {
-            // Clean up existing connections
             if (sendingPc) {
                 sendingPc.close();
                 setSendingPc(null);
@@ -309,7 +284,6 @@ export default function ChatPage() {
 
             resetRemoteVideo();
 
-            // Reset state
             setRemoteVideoTrack(null);
             setRemoteAudioTrack(null);
             setPeerUsername(null);
@@ -317,17 +291,14 @@ export default function ChatPage() {
             setPeerInterests([]);
             setMessages([]);
 
-            // Request new peer by emitting skip-user event
             socket.emit("skip-user");
             setStatus("searching");
             addSystemMessage("Looking for a new person to chat with...");
         }
     };
 
-    // Update the stopSearching function to emit the new event
     const stopSearching = () => {
         if (socket) {
-            // Clean up existing connections
             if (sendingPc) {
                 sendingPc.close();
                 setSendingPc(null);
@@ -339,7 +310,6 @@ export default function ChatPage() {
 
             resetRemoteVideo();
 
-            // Reset state
             setRemoteVideoTrack(null);
             setRemoteAudioTrack(null);
             setPeerUsername(null);
@@ -347,10 +317,7 @@ export default function ChatPage() {
             setPeerInterests([]);
             setMessages([]);
 
-            // Tell the server to stop searching
             socket.emit("stop-searching");
-
-            // We'll set the status to idle when we receive the search-stopped event
         }
     };
 
@@ -390,7 +357,6 @@ export default function ChatPage() {
 
             setMessages((prev) => [...prev, message]);
 
-            // Send message to peer
             socket.emit("chat-message", { message: newMessage.trim() });
 
             setNewMessage("");
@@ -403,8 +369,6 @@ export default function ChatPage() {
     //         localAudioTrack.enabled = isMuted;
     //     }
     // };
-
-    // Handle ESC key press
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
