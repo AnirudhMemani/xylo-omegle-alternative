@@ -58,6 +58,18 @@ export default function ChatPage() {
         addSystemMessage("Looking for someone to chat with...");
     };
 
+    const resetRemoteVideo = () => {
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+            // Clear all tracks from the MediaStream
+            const stream = remoteVideoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach((track) => {
+                track.stop();
+            });
+            // Set srcObject to null to fully reset
+            remoteVideoRef.current.srcObject = null;
+        }
+    };
+
     // Initialize connection and check for user data
     useEffect(() => {
         if (!username || !localVideoTrack) {
@@ -184,6 +196,13 @@ export default function ChatPage() {
             addSystemMessage("Looking for someone to chat with...");
         });
 
+        // Add handler for search-stopped event
+        newSocket.on("search-stopped", () => {
+            setInLobby(false);
+            setStatus("idle");
+            addSystemMessage("Stopped searching. Click 'New Chat' to start again.");
+        });
+
         newSocket.on("add-ice-candidate", ({ candidate, type }) => {
             if (type === "sender") {
                 setReceivingPc((pc) => {
@@ -203,7 +222,7 @@ export default function ChatPage() {
             setPeerUsername(peerName);
             setPeerInterests(peerTags || []);
             setPeerCountry(peerLocation || "Unknown");
-            addSystemMessage(`You are now connected with ${peerName}`);
+            clearAndAddSystemMessage(`You are now connected with ${peerName}`);
         });
 
         // Handle chat messages
@@ -215,6 +234,36 @@ export default function ChatPage() {
                 timestamp: new Date(),
             };
             setMessages((prev) => [...prev, newMsg]);
+        });
+
+        // Handle peer left event
+        newSocket.on("peer-left", () => {
+            console.log("Peer left the chat");
+
+            // Clean up connections
+            if (sendingPc) {
+                sendingPc.close();
+                setSendingPc(null);
+            }
+            if (receivingPc) {
+                receivingPc.close();
+                setReceivingPc(null);
+            }
+
+            resetRemoteVideo();
+
+            // Reset state
+            setRemoteVideoTrack(null);
+            setRemoteAudioTrack(null);
+            setPeerUsername(null);
+            setPeerCountry(null);
+            setPeerInterests([]);
+
+            // Add system message
+            addSystemMessage("Your chat partner has disconnected.");
+
+            // Automatically start searching for a new person
+            searchForPeer(newSocket);
         });
 
         // Start searching for a peer
@@ -258,6 +307,8 @@ export default function ChatPage() {
                 setReceivingPc(null);
             }
 
+            resetRemoteVideo();
+
             // Reset state
             setRemoteVideoTrack(null);
             setRemoteAudioTrack(null);
@@ -266,14 +317,14 @@ export default function ChatPage() {
             setPeerInterests([]);
             setMessages([]);
 
-            // Request new peer
-            // newSocket.emit("skip-user");
-            // setStatus("searching");
-            // addSystemMessage("Looking for a new person to chat with...");
-            searchForPeer(socket);
+            // Request new peer by emitting skip-user event
+            socket.emit("skip-user");
+            setStatus("searching");
+            addSystemMessage("Looking for a new person to chat with...");
         }
     };
 
+    // Update the stopSearching function to emit the new event
     const stopSearching = () => {
         if (socket) {
             // Clean up existing connections
@@ -286,6 +337,8 @@ export default function ChatPage() {
                 setReceivingPc(null);
             }
 
+            resetRemoteVideo();
+
             // Reset state
             setRemoteVideoTrack(null);
             setRemoteAudioTrack(null);
@@ -294,15 +347,27 @@ export default function ChatPage() {
             setPeerInterests([]);
             setMessages([]);
 
-            // Change status to idle instead of connecting
-            setStatus("idle");
-            addSystemMessage("Stopped searching. Click 'New Chat' to start again.");
+            // Tell the server to stop searching
+            socket.emit("stop-searching");
+
+            // We'll set the status to idle when we receive the search-stopped event
         }
     };
 
     const addSystemMessage = (text: string) => {
         setMessages((prev) => [
             ...prev,
+            {
+                id: Date.now().toString(),
+                sender: "system",
+                text,
+                timestamp: new Date(),
+            },
+        ]);
+    };
+
+    const clearAndAddSystemMessage = (text: string) => {
+        setMessages(() => [
             {
                 id: Date.now().toString(),
                 sender: "system",

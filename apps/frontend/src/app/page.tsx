@@ -23,6 +23,7 @@ export default function LandingPage() {
         username,
         interests: tags,
         localVideoTrack,
+        location,
         setUsername,
         addInterest,
         removeInterest,
@@ -82,10 +83,10 @@ export default function LandingPage() {
                     setLocalAudioTrack(audioTrack);
                 }
             } catch (error) {
-                printLogs("getMicAndCameraPermission() | ERROR:", error);
+                printLogs("getMicAndCameraPermission() | get mic permission - ERROR:", error);
             }
         } catch (error) {
-            console.error(error);
+            printLogs("getMicAndCameraPermission() | ERROR:", error);
             toast.error("Uh oh! Something went wrong.", {
                 description: "Camera not found! You need a camera to talk to strangers on Xylo",
             });

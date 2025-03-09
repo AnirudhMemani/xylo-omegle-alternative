@@ -9,8 +9,11 @@ interface Room {
 
 export class RoomManager {
     private rooms: Map<string, Room>;
+    private userRooms: Map<string, string>; // Maps socketId to roomId
+
     constructor() {
         this.rooms = new Map<string, Room>();
+        this.userRooms = new Map<string, string>();
     }
 
     createRoom(user1: User, user2: User) {
@@ -21,6 +24,10 @@ export class RoomManager {
             user2,
         });
 
+        // Track which room each user is in
+        this.userRooms.set(user1.socket.id, roomId);
+        this.userRooms.set(user2.socket.id, roomId);
+
         user1.socket.emit("send-offer", {
             roomId,
         });
@@ -28,6 +35,23 @@ export class RoomManager {
         user2.socket.emit("send-offer", {
             roomId,
         });
+    }
+
+    leaveRoom(socketId: string) {
+        const roomId = this.userRooms.get(socketId);
+        if (!roomId) return;
+
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        // Notify the other user that their peer has left
+        const otherUser = room.user1.socket.id === socketId ? room.user2 : room.user1;
+        otherUser.socket.emit("peer-left");
+
+        // Clean up room
+        this.rooms.delete(roomId);
+        this.userRooms.delete(room.user1.socket.id);
+        this.userRooms.delete(room.user2.socket.id);
     }
 
     onOffer(roomId: string, sdp: string, senderSocketId: string) {
@@ -67,6 +91,21 @@ export class RoomManager {
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
 
         receivingUser.socket.emit("add-ice-candidate", { candidate, type });
+    }
+
+    onUserInfo(roomId: string, username: string, interests: string[], location: string, senderSocketId: string) {
+        const room = this.rooms.get(roomId);
+
+        if (!room) {
+            return;
+        }
+        const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
+
+        receivingUser?.socket.emit("user-info", {
+            username,
+            interests,
+            location,
+        });
     }
 
     generate() {

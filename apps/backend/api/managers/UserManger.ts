@@ -1,9 +1,12 @@
 import { Socket } from "socket.io";
+import { AddIceCandidate, Answer, Offer, UserInfo } from "../types/MessageTypes.js";
 import { RoomManager } from "./RoomManager.js";
 
 export interface User {
     socket: Socket;
     name: string;
+    interests?: string[];
+    location?: string;
 }
 
 export class UserManager {
@@ -17,14 +20,12 @@ export class UserManager {
         this.roomManager = new RoomManager();
     }
 
-    addUser(name: string, socket: Socket) {
+    addUser(socket: Socket) {
+        // Only register the socket without adding to queue
         this.users.push({
-            name,
+            name: "anonymous", // Will be updated when join-room is called
             socket,
         });
-        this.queue.push(socket.id);
-        socket.emit("lobby");
-        this.clearQueue();
         this.initHandlers(socket);
     }
 
@@ -54,16 +55,66 @@ export class UserManager {
     }
 
     initHandlers(socket: Socket) {
-        socket.on("offer", ({ sdp, roomId }: { sdp: string; roomId: string }) => {
+        // Handle join-room event
+        socket.on("join-room", ({ username, interests, location }) => {
+            console.log(`User ${username} joining room with interests: ${interests}`);
+
+            // Update user info
+            const userIndex = this.users.findIndex((u) => u.socket.id === socket.id);
+            if (userIndex !== -1) {
+                this.users[userIndex].name = username;
+                this.users[userIndex].interests = interests;
+                this.users[userIndex].location = location;
+            }
+
+            // Add to queue
+            if (!this.queue.includes(socket.id)) {
+                this.queue.push(socket.id);
+            }
+
+            socket.emit("lobby");
+            this.clearQueue();
+        });
+
+        socket.on("offer", ({ sdp, roomId }: Offer) => {
             this.roomManager.onOffer(roomId, sdp, socket.id);
         });
 
-        socket.on("answer", ({ sdp, roomId }: { sdp: string; roomId: string }) => {
+        socket.on("answer", ({ sdp, roomId }: Answer) => {
             this.roomManager.onAnswer(roomId, sdp, socket.id);
         });
 
-        socket.on("add-ice-candidate", ({ candidate, roomId, type }) => {
+        socket.on("add-ice-candidate", ({ candidate, roomId, type }: AddIceCandidate) => {
             this.roomManager.onIceCandidates(roomId, socket.id, candidate, type);
+        });
+
+        socket.on("user-info", ({ roomId, username, interests, location }: UserInfo) => {
+            this.roomManager.onUserInfo(roomId, username, interests, location, socket.id);
+        });
+
+        // Handle skip-user event
+        socket.on("skip-user", () => {
+            // Remove from current room if any
+            this.roomManager.leaveRoom(socket.id);
+
+            // Add back to queue
+            if (!this.queue.includes(socket.id)) {
+                this.queue.push(socket.id);
+                socket.emit("lobby");
+                this.clearQueue();
+            }
+        });
+
+        // Add new handler for stop-searching
+        socket.on("stop-searching", () => {
+            // Remove from current room if any
+            this.roomManager.leaveRoom(socket.id);
+
+            // Remove from queue
+            this.queue = this.queue.filter((id) => id !== socket.id);
+
+            // Notify client they're no longer in queue
+            socket.emit("search-stopped");
         });
     }
 }
