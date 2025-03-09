@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AUDIO_CONSTRAINTS, GEO_SEARCH_TIMEOUT, VIDEO_CONSTRAINTS } from "@/lib/app-settings";
+import { OPEN_CAGE_API_KEY } from "@/lib/env";
 import { printLogs } from "@/lib/logs";
 import { useUserStore } from "@/store/user/user-store";
 import axios from "axios";
@@ -22,7 +23,6 @@ export default function LandingPage() {
         username,
         interests: tags,
         localVideoTrack,
-        location,
         setUsername,
         addInterest,
         removeInterest,
@@ -30,8 +30,6 @@ export default function LandingPage() {
         setLocalAudioTrack,
         setLocation,
     } = useUserStore();
-
-    const openCageAPIkey = process.env.NEXT_PUBLIC_OPEN_CAGE_API_KEY;
 
     const handleAddTag = () => {
         if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -91,7 +89,7 @@ export default function LandingPage() {
 
     const getGeoLocationInformation = async (latitude: number, longitude: number) => {
         try {
-            const url = `https://api.opencagedata.com/geocode/v1/json?q=${latitude},${longitude}&key=${openCageAPIkey}`;
+            const url = `https://api.opencagedata.com/geocode/v1/json?q=${latitude},${longitude}&key=${OPEN_CAGE_API_KEY}`;
             const response = await axios.get(url);
             if (response.status === 200) {
                 printLogs("Country:", response.data.results[0].components.country);
@@ -112,15 +110,22 @@ export default function LandingPage() {
             return;
         }
 
-        await getMicAndCameraPermission();
-        await getGeoLocationPermission();
+        try {
+            await getMicAndCameraPermission();
+            await getGeoLocationPermission();
 
-        if (localVideoTrack && location !== "Not Found") {
-            router.push("/chat");
-        } else {
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    "We need camera and location permission to give you the best experience talking to strangers on Xylo",
+            if (localVideoTrack) {
+                router.push("/chat");
+            } else {
+                toast.error("Uh oh! Something went wrong.", {
+                    description:
+                        "We need camera permission to give you the best experience talking to strangers on Xylo",
+                });
+            }
+        } catch (error) {
+            printLogs("handleStartChat() | Error during setup:", error);
+            toast.error("Failed to initialize chat", {
+                description: "Please try again or check your device permissions",
             });
         }
     };
@@ -215,9 +220,15 @@ export default function LandingPage() {
                                 animate={{ opacity: 1 }}
                             >
                                 {tags.map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="flex items-center gap-1 px-3 py-1">
-                                        {tag}
-                                        <X size={14} className="cursor-pointer" onClick={() => handleRemoveTag(tag)} />
+                                    <Badge key={tag} variant="secondary" className="">
+                                        <span className="flex items-center gap-1">
+                                            {tag}
+                                            <X
+                                                size={14}
+                                                className="cursor-pointer"
+                                                onClick={() => handleRemoveTag(tag)}
+                                            />
+                                        </span>
                                     </Badge>
                                 ))}
                             </motion.div>

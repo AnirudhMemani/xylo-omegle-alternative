@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { socket } from "@/socket";
+import { useUserStore } from "@/store/user/user-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Mic, MicOff, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Socket } from "socket.io-client";
 
 type Message = {
     id: string;
@@ -23,101 +25,250 @@ type UserStatus = "connecting" | "connected" | "searching";
 
 export default function ChatPage() {
     const router = useRouter();
-    const [username, setUsername] = useState<string>("");
-    const [interests, setInterests] = useState<string[]>([]);
+
+    // Get user data from store
+    const { username, interests, localVideoTrack, localAudioTrack, location } = useUserStore();
+
     const [status, setStatus] = useState<UserStatus>("connecting");
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [peerCountry, setPeerCountry] = useState<string | null>(null);
     const [peerUsername, setPeerUsername] = useState<string | null>(null);
     const [peerInterests, setPeerInterests] = useState<string[]>([]);
+    const [isMuted, setIsMuted] = useState<boolean>(false);
+
+    // WebRTC states
+    const [newSocket, setNewSocket] = useState<Socket>(socket);
+    const [sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
+    const [receivingPc, setReceivingPc] = useState<RTCPeerConnection | null>(null);
+    const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
+    const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
+    const [inLobby, setInLobby] = useState(true);
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Simulate loading user data
+    const searchForPeer = () => {
+        newSocket.emit("join-room", { username, interests, location });
+        setStatus("searching");
+        addSystemMessage("Looking for someone to chat with...");
+    };
+
+    // Initialize connection and check for user data
     useEffect(() => {
-        const storedUsername = localStorage.getItem("username");
-        const storedInterests = localStorage.getItem("interests");
-
-        if (!storedUsername) {
+        if (!username || !localVideoTrack) {
             router.push("/");
             return;
         }
 
-        setUsername(storedUsername);
-        setInterests(storedInterests ? JSON.parse(storedInterests) : []);
-
-        // Simulate connecting to a peer after a delay
-        const timer = setTimeout(() => {
-            connectToPeer();
-        }, 2000);
-
-        return () => clearTimeout(timer);
-    }, [router]);
-
-    // Scroll to bottom of messages
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
-
-    // Simulate connecting to a peer
-    const connectToPeer = () => {
-        setStatus("searching");
-
-        // Simulate finding a peer after a delay
-        setTimeout(() => {
-            // Mock peer data
-            setPeerUsername("RandomUser" + Math.floor(Math.random() * 1000));
-            setPeerCountry("United States");
-            setPeerInterests(["Music", "Technology", "Travel"].filter(() => Math.random() > 0.5));
+        // Socket event handlers
+        newSocket.on("send-offer", async ({ roomId }) => {
+            console.log("Sending offer");
             setStatus("connected");
+            setInLobby(false);
 
-            // Add system message
-            addSystemMessage("You are now connected with a new user");
+            const pc = new RTCPeerConnection();
 
-            // Simulate getting local and remote video streams
-            setupVideoStreams();
-        }, 1500);
-    };
+            pc.onicecandidate = async (e) => {
+                if (e.candidate) {
+                    newSocket.emit("add-ice-candidate", {
+                        candidate: e.candidate,
+                        type: "sender",
+                        roomId,
+                    });
+                }
+            };
 
-    // Simulate setting up video streams
-    const setupVideoStreams = async () => {
-        try {
-            // Simulate getting local stream
-            const fakeLocalStream = new MediaStream();
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = fakeLocalStream;
+            pc.onnegotiationneeded = async () => {
+                const sdp = await pc.createOffer();
+                await pc.setLocalDescription(sdp);
+                setSendingPc(pc);
+                newSocket.emit("offer", {
+                    sdp,
+                    roomId,
+                });
+            };
+
+            if (localVideoTrack) {
+                pc.addTrack(localVideoTrack);
             }
 
-            // Simulate getting remote stream
-            const fakeRemoteStream = new MediaStream();
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = fakeRemoteStream;
+            if (localAudioTrack) {
+                pc.addTrack(localAudioTrack);
             }
-        } catch (error) {
-            console.error("Error accessing media devices:", error);
-            toast.error("Camera Access Error", {
-                description: "Could not access camera or microphone",
+
+            // Send user info to peer
+            newSocket.emit("user-info", {
+                roomId,
+                username,
+                interests,
+                location,
             });
+        });
+
+        newSocket.on("offer", async ({ roomId, sdp: remoteSdp }) => {
+            console.log("Received offer");
+            setStatus("connected");
+            setInLobby(false);
+
+            const pc = new RTCPeerConnection();
+
+            pc.ontrack = (event: RTCTrackEvent) => {
+                const track = event.track;
+
+                // Check track kind
+                if (track.kind === "audio") {
+                    setRemoteAudioTrack(track);
+                } else if (track.kind === "video") {
+                    setRemoteVideoTrack(track);
+                }
+
+                // Add track to remote video element
+                if (remoteVideoRef.current) {
+                    if (!remoteVideoRef.current.srcObject) {
+                        remoteVideoRef.current.srcObject = new MediaStream();
+                    }
+                    (remoteVideoRef.current.srcObject as MediaStream).addTrack(track);
+                }
+            };
+
+            pc.onicecandidate = async (e) => {
+                if (e.candidate) {
+                    newSocket.emit("add-ice-candidate", {
+                        candidate: e.candidate,
+                        type: "receiver",
+                        roomId,
+                    });
+                }
+            };
+
+            await pc.setRemoteDescription(remoteSdp);
+            const sdp = await pc.createAnswer();
+            await pc.setLocalDescription(sdp);
+
+            setReceivingPc(pc);
+
+            newSocket.emit("answer", {
+                roomId,
+                sdp: sdp,
+            });
+
+            // Send user info to peer
+            newSocket.emit("user-info", {
+                roomId,
+                username,
+                interests,
+                location,
+            });
+        });
+
+        newSocket.on("answer", ({ sdp: remoteSdp }) => {
+            setInLobby(false);
+            setSendingPc((pc) => {
+                if (pc) pc.setRemoteDescription(remoteSdp);
+                return pc;
+            });
+        });
+
+        newSocket.on("lobby", () => {
+            setInLobby(true);
+            setStatus("searching");
+            addSystemMessage("Looking for someone to chat with...");
+        });
+
+        newSocket.on("add-ice-candidate", ({ candidate, type }) => {
+            if (type === "sender") {
+                setReceivingPc((pc) => {
+                    if (pc) pc.addIceCandidate(candidate);
+                    return pc;
+                });
+            } else {
+                setSendingPc((pc) => {
+                    if (pc) pc.addIceCandidate(candidate);
+                    return pc;
+                });
+            }
+        });
+
+        // Handle peer user info
+        newSocket.on("user-info", ({ username: peerName, interests: peerTags, location: peerLocation }) => {
+            setPeerUsername(peerName);
+            setPeerInterests(peerTags || []);
+            setPeerCountry(peerLocation || "Unknown");
+            addSystemMessage(`You are now connected with ${peerName}`);
+        });
+
+        // Handle chat messages
+        newSocket.on("chat-message", ({ message }) => {
+            const newMsg: Message = {
+                id: Date.now().toString(),
+                sender: "peer",
+                text: message,
+                timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, newMsg]);
+        });
+
+        // Start searching for a peer
+        searchForPeer();
+
+        // Cleanup on unmount
+        return () => {
+            if (sendingPc) {
+                sendingPc.close();
+            }
+            if (receivingPc) {
+                receivingPc.close();
+            }
+            newSocket.disconnect();
+        };
+    }, [username, localVideoTrack, localAudioTrack, interests, location, router]);
+
+    // Set up local video
+    useEffect(() => {
+        if (localVideoRef.current && localVideoTrack) {
+            const stream = new MediaStream();
+            stream.addTrack(localVideoTrack);
+            if (localAudioTrack && !isMuted) {
+                stream.addTrack(localAudioTrack);
+            }
+            localVideoRef.current.srcObject = stream;
+            localVideoRef.current.play().catch(console.error);
+        }
+    }, [localVideoRef, localVideoTrack, localAudioTrack, isMuted]);
+
+    const skipUser = () => {
+        if (socket) {
+            // Clean up existing connections
+            if (sendingPc) {
+                sendingPc.close();
+                setSendingPc(null);
+            }
+            if (receivingPc) {
+                receivingPc.close();
+                setReceivingPc(null);
+            }
+
+            // Reset state
+            setRemoteVideoTrack(null);
+            setRemoteAudioTrack(null);
+            setPeerUsername(null);
+            setPeerCountry(null);
+            setPeerInterests([]);
+            setMessages([]);
+
+            // Request new peer
+            // socket.emit("skip-user");
+            // setStatus("searching");
+            // addSystemMessage("Looking for a new person to chat with...");
+            searchForPeer();
         }
     };
 
-    const skipUser = () => {
-        setStatus("searching");
-        setPeerUsername(null);
-        setPeerCountry(null);
-        setPeerInterests([]);
-        setMessages([]);
-
-        // Simulate finding a new peer
-        setTimeout(() => {
-            connectToPeer();
-        }, 1500);
-    };
-
     const stopSearching = () => {
+        if (socket) {
+            socket.disconnect();
+        }
         router.push("/");
     };
 
@@ -136,7 +287,7 @@ export default function ChatPage() {
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (newMessage.trim() && status === "connected") {
+        if (newMessage.trim() && status === "connected" && socket) {
             const message: Message = {
                 id: Date.now().toString(),
                 sender: "me",
@@ -145,32 +296,18 @@ export default function ChatPage() {
             };
 
             setMessages((prev) => [...prev, message]);
+
+            // Send message to peer
+            socket.emit("chat-message", { message: newMessage.trim() });
+
             setNewMessage("");
+        }
+    };
 
-            // Simulate receiving a response after a delay
-            setTimeout(
-                () => {
-                    const responses = [
-                        "That's interesting!",
-                        "I agree with you.",
-                        "Tell me more about that.",
-                        "I've been thinking about that too.",
-                        "What else do you like to do?",
-                        "Have you ever traveled abroad?",
-                        "What's your favorite movie?",
-                    ];
-
-                    const responseMessage: Message = {
-                        id: Date.now().toString(),
-                        sender: "peer",
-                        text: responses[Math.floor(Math.random() * responses.length)] || "",
-                        timestamp: new Date(),
-                    };
-
-                    setMessages((prev) => [...prev, responseMessage]);
-                },
-                1000 + Math.random() * 2000
-            );
+    const toggleMute = () => {
+        setIsMuted(!isMuted);
+        if (localAudioTrack) {
+            localAudioTrack.enabled = isMuted;
         }
     };
 
@@ -203,7 +340,6 @@ export default function ChatPage() {
                             playsInline
                             muted
                             className="absolute inset-0 h-full w-full object-cover"
-                            poster="/placeholder.svg?height=600&width=800"
                         />
                         <div className="backdrop-blur-xs absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white">
                             <div className="flex items-center gap-3">
@@ -231,6 +367,18 @@ export default function ChatPage() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Mute button */}
+                        <div className="absolute bottom-4 right-4">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="rounded-full bg-black/50 text-white hover:bg-black/70"
+                                onClick={toggleMute}
+                            >
+                                {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Remote video (peer) */}
@@ -240,7 +388,6 @@ export default function ChatPage() {
                             autoPlay
                             playsInline
                             className="absolute inset-0 h-full w-full object-cover"
-                            poster="/placeholder.svg?height=600&width=800"
                         />
 
                         {/* Connection status overlay */}
@@ -354,7 +501,6 @@ export default function ChatPage() {
                                 )}
                             </motion.div>
                         ))}
-                        <div ref={messagesEndRef} />
                     </AnimatePresence>
                 </ScrollArea>
 
