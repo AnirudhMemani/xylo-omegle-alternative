@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function LandingPage() {
@@ -48,6 +48,11 @@ export default function LandingPage() {
             handleAddTag();
         }
     };
+
+    useEffect(() => {
+        getMicAndCameraPermission();
+        getGeoLocationPermission();
+    }, []);
 
     const getMicAndCameraPermission = async () => {
         try {
@@ -109,11 +114,7 @@ export default function LandingPage() {
             });
             return;
         }
-
         try {
-            await getMicAndCameraPermission();
-            await getGeoLocationPermission();
-
             if (localVideoTrack) {
                 router.push("/chat");
             } else {
