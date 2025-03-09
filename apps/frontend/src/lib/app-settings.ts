@@ -22,3 +22,5 @@ export const AUDIO_CONSTRAINTS = {
 
 export const MAX_MESSAGE_LENGTH = 500;
 export const MAX_INTERESTS = 10;
+
+export const SOCKET_RECONNECTION_ATTEMPTS = 5;

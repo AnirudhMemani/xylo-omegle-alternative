@@ -5,14 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { socket } from "@/socket";
+import { SOCKET_RECONNECTION_ATTEMPTS } from "@/lib/app-settings";
+import { SERVER_URL } from "@/lib/env";
 import { useUserStore } from "@/store/user/user-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mic, MicOff, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
 type Message = {
     id: string;
@@ -21,7 +22,8 @@ type Message = {
     timestamp: Date;
 };
 
-type UserStatus = "connecting" | "connected" | "searching";
+// Update the UserStatus type to include "idle"
+type UserStatus = "connecting" | "connected" | "searching" | "idle";
 
 export default function ChatPage() {
     const router = useRouter();
@@ -29,27 +31,29 @@ export default function ChatPage() {
     // Get user data from store
     const { username, interests, localVideoTrack, localAudioTrack, location } = useUserStore();
 
+    // Use the imported newSocket directly instead of creating a new state
     const [status, setStatus] = useState<UserStatus>("connecting");
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [peerCountry, setPeerCountry] = useState<string | null>(null);
     const [peerUsername, setPeerUsername] = useState<string | null>(null);
     const [peerInterests, setPeerInterests] = useState<string[]>([]);
-    const [isMuted, setIsMuted] = useState<boolean>(false);
+    // const [isMuted, setIsMuted] = useState<boolean>(false);
 
     // WebRTC states
-    const [newSocket, setNewSocket] = useState<Socket>(socket);
     const [sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
     const [receivingPc, setReceivingPc] = useState<RTCPeerConnection | null>(null);
     const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
     const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
     const [inLobby, setInLobby] = useState(true);
 
+    const [socket, setSocket] = useState<Socket | null>(null);
+
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-    const searchForPeer = () => {
-        newSocket.emit("join-room", { username, interests, location });
+    const searchForPeer = (socket: Socket) => {
+        socket.emit("join-room", { username, interests, location });
         setStatus("searching");
         addSystemMessage("Looking for someone to chat with...");
     };
@@ -60,6 +64,10 @@ export default function ChatPage() {
             router.push("/");
             return;
         }
+
+        const newSocket = io(SERVER_URL, { reconnectionAttempts: SOCKET_RECONNECTION_ATTEMPTS });
+
+        setSocket(newSocket);
 
         // Socket event handlers
         newSocket.on("send-offer", async ({ roomId }) => {
@@ -210,7 +218,7 @@ export default function ChatPage() {
         });
 
         // Start searching for a peer
-        searchForPeer();
+        searchForPeer(newSocket);
 
         // Cleanup on unmount
         return () => {
@@ -220,6 +228,7 @@ export default function ChatPage() {
             if (receivingPc) {
                 receivingPc.close();
             }
+
             newSocket.disconnect();
         };
     }, [username, localVideoTrack, localAudioTrack, interests, location, router]);
@@ -229,13 +238,13 @@ export default function ChatPage() {
         if (localVideoRef.current && localVideoTrack) {
             const stream = new MediaStream();
             stream.addTrack(localVideoTrack);
-            if (localAudioTrack && !isMuted) {
+            if (localAudioTrack) {
                 stream.addTrack(localAudioTrack);
             }
             localVideoRef.current.srcObject = stream;
             localVideoRef.current.play().catch(console.error);
         }
-    }, [localVideoRef, localVideoTrack, localAudioTrack, isMuted]);
+    }, [localVideoRef, localVideoTrack, localAudioTrack]);
 
     const skipUser = () => {
         if (socket) {
@@ -258,18 +267,37 @@ export default function ChatPage() {
             setMessages([]);
 
             // Request new peer
-            // socket.emit("skip-user");
+            // newSocket.emit("skip-user");
             // setStatus("searching");
             // addSystemMessage("Looking for a new person to chat with...");
-            searchForPeer();
+            searchForPeer(socket);
         }
     };
 
     const stopSearching = () => {
         if (socket) {
-            socket.disconnect();
+            // Clean up existing connections
+            if (sendingPc) {
+                sendingPc.close();
+                setSendingPc(null);
+            }
+            if (receivingPc) {
+                receivingPc.close();
+                setReceivingPc(null);
+            }
+
+            // Reset state
+            setRemoteVideoTrack(null);
+            setRemoteAudioTrack(null);
+            setPeerUsername(null);
+            setPeerCountry(null);
+            setPeerInterests([]);
+            setMessages([]);
+
+            // Change status to idle instead of connecting
+            setStatus("idle");
+            addSystemMessage("Stopped searching. Click 'New Chat' to start again.");
         }
-        router.push("/");
     };
 
     const addSystemMessage = (text: string) => {
@@ -304,12 +332,12 @@ export default function ChatPage() {
         }
     };
 
-    const toggleMute = () => {
-        setIsMuted(!isMuted);
-        if (localAudioTrack) {
-            localAudioTrack.enabled = isMuted;
-        }
-    };
+    // const toggleMute = () => {
+    //     setIsMuted(!isMuted);
+    //     if (localAudioTrack) {
+    //         localAudioTrack.enabled = isMuted;
+    //     }
+    // };
 
     // Handle ESC key press
     useEffect(() => {
@@ -355,9 +383,9 @@ export default function ChatPage() {
                             </div>
                             {interests.length > 0 && (
                                 <div className="mt-2 flex flex-wrap gap-1">
-                                    {interests.map((interest) => (
+                                    {interests.map((interest, idx) => (
                                         <Badge
-                                            key={interest}
+                                            key={interest + idx}
                                             variant="outline"
                                             className="border-none bg-white/10 text-xs text-white"
                                         >
@@ -369,7 +397,7 @@ export default function ChatPage() {
                         </div>
 
                         {/* Mute button */}
-                        <div className="absolute bottom-4 right-4">
+                        {/* <div className="absolute bottom-4 right-4">
                             <Button
                                 variant="outline"
                                 size="icon"
@@ -378,7 +406,7 @@ export default function ChatPage() {
                             >
                                 {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
                             </Button>
-                        </div>
+                        </div> */}
                     </div>
 
                     {/* Remote video (peer) */}
@@ -391,21 +419,20 @@ export default function ChatPage() {
                         />
 
                         {/* Connection status overlay */}
-                        {status !== "connected" && (
+                        {status === "searching" && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">
                                 <div className="text-center text-white">
-                                    {status === "connecting" && (
-                                        <>
-                                            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin" />
-                                            <p className="text-xl">Initializing...</p>
-                                        </>
-                                    )}
-                                    {status === "searching" && (
-                                        <>
-                                            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin" />
-                                            <p className="text-xl">Looking for someone to chat with...</p>
-                                        </>
-                                    )}
+                                    <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin" />
+                                    <p className="text-xl">Looking for someone to chat with...</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {status === "connecting" && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70">
+                                <div className="text-center text-white">
+                                    <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin" />
+                                    <p className="text-xl">Initializing...</p>
                                 </div>
                             </div>
                         )}
@@ -426,9 +453,9 @@ export default function ChatPage() {
                                 </div>
                                 {peerInterests.length > 0 && (
                                     <div className="mt-2 flex flex-wrap gap-1">
-                                        {peerInterests.map((interest) => (
+                                        {peerInterests.map((interest, idx) => (
                                             <Badge
-                                                key={interest}
+                                                key={interest + idx}
                                                 variant="outline"
                                                 className="border-none bg-white/10 text-xs text-white"
                                             >
@@ -447,10 +474,10 @@ export default function ChatPage() {
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                         <Button
                             variant={status === "searching" ? "destructive" : "default"}
-                            onClick={status === "searching" ? stopSearching : skipUser}
+                            onClick={status === "searching" ? stopSearching : status === "idle" ? skipUser : skipUser}
                             className="rounded-full px-8 py-6 text-lg font-medium"
                         >
-                            {status === "searching" ? "Stop Searching" : "Skip User"}
+                            {status === "searching" ? "Stop Searching" : status === "idle" ? "New Chat" : "Skip User"}
                         </Button>
                     </motion.div>
                 </div>
@@ -464,9 +491,9 @@ export default function ChatPage() {
 
                 <ScrollArea className="flex-1 p-4">
                     <AnimatePresence>
-                        {messages.map((message) => (
+                        {messages.map((message, idx) => (
                             <motion.div
-                                key={message.id}
+                                key={message.id + idx}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
