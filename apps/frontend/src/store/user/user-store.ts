@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 type UserState = {
     username: string;
@@ -18,44 +17,32 @@ type UserState = {
     clearUser: () => void;
 };
 
-export const useUserStore = create<UserState>()(
-    persist(
-        (set) => ({
+export const useUserStore = create<UserState>()((set) => ({
+    username: "",
+    interests: [],
+    localVideoTrack: null,
+    localAudioTrack: null,
+    location: "Not Found",
+
+    setUsername: (username) => set({ username }),
+    setInterests: (interests) => set({ interests }),
+    addInterest: (interest) =>
+        set((state) => ({
+            interests: [...state.interests, interest],
+        })),
+    removeInterest: (interest) =>
+        set((state) => ({
+            interests: state.interests.filter((item) => item !== interest),
+        })),
+    setLocalVideoTrack: (localVideoTrack) => set({ localVideoTrack }),
+    setLocalAudioTrack: (localAudioTrack) => set({ localAudioTrack }),
+    setLocation: (location) => set({ location }),
+    clearUser: () =>
+        set({
             username: "",
             interests: [],
             localVideoTrack: null,
             localAudioTrack: null,
             location: "Not Found",
-
-            setUsername: (username) => set({ username }),
-            setInterests: (interests) => set({ interests }),
-            addInterest: (interest) =>
-                set((state) => ({
-                    interests: [...state.interests, interest],
-                })),
-            removeInterest: (interest) =>
-                set((state) => ({
-                    interests: state.interests.filter((item) => item !== interest),
-                })),
-            setLocalVideoTrack: (localVideoTrack) => set({ localVideoTrack }),
-            setLocalAudioTrack: (localAudioTrack) => set({ localAudioTrack }),
-            setLocation: (location) => set({ location }),
-            clearUser: () =>
-                set({
-                    username: "",
-                    interests: [],
-                    localVideoTrack: null,
-                    localAudioTrack: null,
-                    location: "Not Found",
-                }),
         }),
-        {
-            name: "user-storage",
-            partialize: (state) => ({
-                username: state.username,
-                interests: state.interests,
-                location: state.location,
-            }),
-        }
-    )
-);
+}));
