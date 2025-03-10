@@ -96,6 +96,7 @@ export class RoomManager {
         if (!room) {
             return;
         }
+
         const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
 
         receivingUser?.socket.emit("user-info", {

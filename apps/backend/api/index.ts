@@ -14,7 +14,7 @@ const allowedHosts = process.env.ALLOWED_HOSTS || "*";
 
 app.get("/", (_req: Request, res: Response) => {
     res.send(
-        `<div style="display: flex; justify-content: center; align-items: center; height: 100vh;">Welcome to Serendipity!</div>`
+        `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100%;">Welcome To Xylo - An Omegle Alternative!</div>`
     );
 });
 
