@@ -32,6 +32,10 @@ export default function LandingPage() {
     } = useUserStore();
 
     const handleAddTag = () => {
+        if (tags.length >= 5) {
+            toast.info("You can add up to 5 tags");
+            return;
+        }
         if (currentTag.trim() && !tags.includes(currentTag.trim())) {
             addInterest(currentTag.trim());
             setCurrentTag("");

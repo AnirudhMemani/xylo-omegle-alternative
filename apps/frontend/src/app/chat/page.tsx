@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
 
 type Message = {
     id: string;
@@ -218,6 +219,11 @@ export default function ChatPage() {
                 timestamp: new Date(),
             };
             setMessages((prev) => [...prev, newMsg]);
+        });
+
+        newSocket.on("interests-error", ({ message }) => {
+            toast.error(message);
+            router.push("/");
         });
 
         newSocket.on("peer-left", () => {

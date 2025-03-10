@@ -5,6 +5,12 @@ export interface UserInfo {
     location: string;
 }
 
+export interface JoinRoom {
+    username: string;
+    interests: string[];
+    location: string;
+}
+
 export interface AddIceCandidate {
     candidate: any;
     roomId: string;

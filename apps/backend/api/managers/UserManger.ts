@@ -1,6 +1,6 @@
 import { Socket } from "socket.io";
 import { printLogs } from "../lib/logs.js";
-import { AddIceCandidate, Answer, Offer, UserInfo } from "../types/MessageTypes.js";
+import { AddIceCandidate, Answer, JoinRoom, Offer, UserInfo } from "../types/MessageTypes.js";
 import { RoomManager } from "./RoomManager.js";
 
 export interface User {
@@ -103,10 +103,16 @@ export class UserManager {
     }
 
     initHandlers(socket: Socket) {
-        socket.on("join-room", ({ username, interests, location }) => {
+        socket.on("join-room", ({ username, interests, location }: JoinRoom) => {
+            if (interests.length > 5) {
+                socket.emit("interests-error", { message: "You can add upto 5 tags" });
+                return;
+            }
+
             console.log(`User ${username} joining room with interests: ${interests}`);
 
             const userIndex = this.users.findIndex((u) => u.socket.id === socket.id);
+
             if (userIndex !== -1) {
                 this.users[userIndex].name = username;
                 this.users[userIndex].interests = interests;
