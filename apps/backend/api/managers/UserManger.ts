@@ -88,6 +88,13 @@ export class UserManager {
             this.roomManager.onUserInfo(roomId, username, interests, location, socket.id);
         });
 
+        socket.on("chat-message", ({ message }) => {
+            const roomId = this.roomManager.getUserRoom(socket.id);
+            if (roomId) {
+                this.roomManager.relayMessage(roomId, message, socket.id);
+            }
+        });
+
         socket.on("skip-user", () => {
             this.roomManager.leaveRoom(socket.id);
 

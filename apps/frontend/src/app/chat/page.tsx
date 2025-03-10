@@ -9,7 +9,7 @@ import { SOCKET_RECONNECTION_ATTEMPTS } from "@/lib/app-settings";
 import { SERVER_URL } from "@/lib/env";
 import { useUserStore } from "@/store/user/user-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, MapPin, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -38,9 +38,9 @@ export default function ChatPage() {
 
     const [sendingPc, setSendingPc] = useState<RTCPeerConnection | null>(null);
     const [receivingPc, setReceivingPc] = useState<RTCPeerConnection | null>(null);
-    const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
-    const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
-    const [inLobby, setInLobby] = useState(true);
+    const [_remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
+    const [_remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
+    const [_inLobby, setInLobby] = useState(true);
 
     const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -369,6 +369,7 @@ export default function ChatPage() {
     //         localAudioTrack.enabled = isMuted;
     //     }
     // };
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -477,7 +478,10 @@ export default function ChatPage() {
                                     </Avatar>
                                     <div>
                                         <p className="font-medium">{peerUsername}</p>
-                                        <p className="text-xs opacity-80">{peerCountry}</p>
+                                        <div className="flex items-center gap-0.5">
+                                            <MapPin className="size-3" />
+                                            <p className="text-xs opacity-80">{peerCountry}</p>
+                                        </div>
                                     </div>
                                 </div>
                                 {peerInterests.length > 0 && (

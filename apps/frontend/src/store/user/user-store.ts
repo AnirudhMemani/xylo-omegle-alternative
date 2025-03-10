@@ -22,7 +22,7 @@ export const useUserStore = create<UserState>()((set) => ({
     interests: [],
     localVideoTrack: null,
     localAudioTrack: null,
-    location: "Not Found",
+    location: "Unknown",
 
     setUsername: (username) => set({ username }),
     setInterests: (interests) => set({ interests }),

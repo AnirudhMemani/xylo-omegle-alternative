@@ -108,4 +108,22 @@ export class RoomManager {
     generate() {
         return GLOBAL_ROOM_ID++;
     }
+
+    getUserRoom(socketId: string): string | undefined {
+        return this.userRooms.get(socketId);
+    }
+
+    relayMessage(roomId: string, message: string, senderSocketId: string) {
+        const room = this.rooms.get(roomId);
+
+        if (!room) {
+            return;
+        }
+
+        const receivingUser = room.user1.socket.id === senderSocketId ? room.user2 : room.user1;
+
+        receivingUser?.socket.emit("chat-message", {
+            message,
+        });
+    }
 }
