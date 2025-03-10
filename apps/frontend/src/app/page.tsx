@@ -12,12 +12,14 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function LandingPage() {
     const router = useRouter();
     const [currentTag, setCurrentTag] = useState("");
+
+    const currentYear = new Date().getUTCFullYear();
 
     const {
         username,
@@ -51,6 +53,24 @@ export default function LandingPage() {
             e.preventDefault();
             handleAddTag();
         }
+    };
+
+    const handleTagOnChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value.length > 20) {
+            toast.info("Tag name cannot exceed 20 characters");
+            return;
+        }
+
+        setCurrentTag(e.target.value);
+    };
+
+    const handleUsernameOnChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value.length > 20) {
+            toast.info("Username cannot exceed 20 characters");
+            return;
+        }
+
+        setUsername(e.target.value);
     };
 
     useEffect(() => {
@@ -223,10 +243,39 @@ export default function LandingPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-linear-to-r mb-8 from-purple-600 to-pink-600 bg-clip-text text-center text-3xl font-bold text-transparent"
+                    className="bg-linear-to-r mb-2 from-purple-600 to-pink-600 bg-clip-text text-center text-3xl font-bold text-transparent"
                 >
-                    Connect & Chat
+                    Xylo
                 </motion.h1>
+
+                <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="mb-6 text-center text-gray-600"
+                >
+                    Connect with new people around the world through video chat.
+                </motion.p>
+
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="mb-8 flex justify-center gap-4"
+                >
+                    <div className="text-center">
+                        <div className="text-xl font-bold text-purple-600">1M+</div>
+                        <div className="text-xs text-gray-500">Users</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-xl font-bold text-purple-600">100+</div>
+                        <div className="text-xs text-gray-500">Countries</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-xl font-bold text-purple-600">24/7</div>
+                        <div className="text-xs text-gray-500">Live</div>
+                    </div>
+                </motion.div>
 
                 <div className="space-y-6">
                     <div className="space-y-2">
@@ -236,7 +285,7 @@ export default function LandingPage() {
                         <Input
                             id="username"
                             value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            onChange={handleUsernameOnChange}
                             placeholder="Enter your username"
                             className="w-full"
                             required
@@ -251,7 +300,7 @@ export default function LandingPage() {
                             <Input
                                 id="tags"
                                 value={currentTag}
-                                onChange={(e) => setCurrentTag(e.target.value)}
+                                onChange={handleTagOnChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Add interests (press Enter)"
                                 className="flex-1"
@@ -292,8 +341,49 @@ export default function LandingPage() {
                             Start Chatting
                         </Button>
                     </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="border-t border-gray-200 pt-4"
+                    >
+                        <h3 className="mb-2 text-sm font-medium text-gray-700">Why Xylo?</h3>
+                        <ul className="space-y-1 text-xs text-gray-600">
+                            <li className="flex items-center gap-1">
+                                <span className="text-green-500">✓</span> Interest-based matching
+                            </li>
+                            <li className="flex items-center gap-1">
+                                <span className="text-green-500">✓</span> High-quality video chat
+                            </li>
+                            <li className="flex items-center gap-1">
+                                <span className="text-green-500">✓</span> Meet people worldwide
+                            </li>
+                            <li className="flex items-center gap-1">
+                                <span className="text-green-500">✓</span> Safe and secure platform
+                            </li>
+                        </ul>
+                    </motion.div>
                 </div>
             </motion.div>
+
+            <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-4 text-center text-xs text-gray-500"
+            >
+                By using Xylo, you agree to our Terms of Service and Privacy Policy.
+                <br />© {currentYear} Xylo. All rights reserved.
+            </motion.p>
+            <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-2 text-center text-xs font-semibold text-gray-500"
+            >
+                Made with ❤️ by Anirudh
+            </motion.p>
         </div>
     );
 }

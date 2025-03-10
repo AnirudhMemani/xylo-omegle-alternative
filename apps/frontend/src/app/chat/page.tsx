@@ -299,7 +299,7 @@ export default function ChatPage() {
 
             socket.emit("skip-user");
             setStatus("searching");
-            addSystemMessage("Looking for a new person to chat with...");
+            clearAndAddSystemMessage("Looking for a new person to chat with...");
         }
     };
 
@@ -395,7 +395,7 @@ export default function ChatPage() {
         <div className="bg-linear-to-br flex min-h-screen flex-col gap-4 from-indigo-50 via-purple-50 to-pink-50 p-4">
             {/* Video section */}
             <div className="flex w-full flex-col gap-4">
-                <div className="grid h-[70vh] grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid h-[90vh] grid-cols-1 gap-4 md:h-[70vh] md:grid-cols-2">
                     {/* Local video */}
                     <div className="relative h-full overflow-hidden rounded-xl bg-black shadow-xl">
                         <video
@@ -405,20 +405,23 @@ export default function ChatPage() {
                             muted
                             className="absolute inset-0 h-full w-full object-cover"
                         />
-                        <div className="backdrop-blur-xs absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white">
-                            <div className="flex items-center gap-3">
-                                <Avatar>
-                                    <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500">
+
+                        {/* User info moved to top of video container */}
+                        <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-3 text-white">
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500 text-sm">
                                         {username.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-medium">{username}</p>
-                                    <p className="text-xs opacity-80">You</p>
+                                    <p className="text-sm font-medium">
+                                        {username} <span className="text-xs opacity-80">(You)</span>
+                                    </p>
                                 </div>
                             </div>
                             {interests.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
+                                <div className="mt-1 flex flex-wrap gap-1">
                                     {interests.map((interest, idx) => (
                                         <Badge
                                             key={interest + idx}
@@ -431,18 +434,6 @@ export default function ChatPage() {
                                 </div>
                             )}
                         </div>
-
-                        {/* Mute button */}
-                        {/* <div className="absolute bottom-4 right-4">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="rounded-full bg-black/50 text-white hover:bg-black/70"
-                                onClick={toggleMute}
-                            >
-                                {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-                            </Button>
-                        </div> */}
                     </div>
 
                     {/* Remote video (peer) */}
@@ -473,17 +464,17 @@ export default function ChatPage() {
                             </div>
                         )}
 
-                        {/* Peer info overlay */}
+                        {/* Peer info moved to top of video container */}
                         {status === "connected" && peerUsername && (
-                            <div className="backdrop-blur-xs absolute bottom-4 left-4 rounded-lg bg-black/50 p-3 text-white">
-                                <div className="flex items-center gap-3">
-                                    <Avatar>
-                                        <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500">
+                            <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-3 text-white">
+                                <div className="flex items-center gap-2">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback className="bg-linear-to-br from-purple-500 to-pink-500 text-sm">
                                             {peerUsername.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="font-medium">{peerUsername}</p>
+                                        <p className="text-sm font-medium">{peerUsername}</p>
                                         <div className="flex items-center gap-0.5">
                                             <MapPin className="size-3" />
                                             <p className="text-xs opacity-80">{peerCountry}</p>
@@ -491,7 +482,7 @@ export default function ChatPage() {
                                     </div>
                                 </div>
                                 {peerInterests.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-1">
+                                    <div className="mt-1 flex flex-wrap gap-1">
                                         {peerInterests.map((interest, idx) => (
                                             <Badge
                                                 key={interest + idx}
@@ -528,7 +519,7 @@ export default function ChatPage() {
                     <h2 className="font-semibold">Chat</h2>
                 </div>
 
-                <ScrollArea className="flex-1 p-4">
+                <ScrollArea className="h-full overflow-auto p-4">
                     <AnimatePresence>
                         {messages.map((message, idx) => (
                             <motion.div
