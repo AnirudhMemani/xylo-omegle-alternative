@@ -26,6 +26,13 @@ export const metadata: Metadata = {
             "Connect with random people worldwide through video chat. A safe and fun way to meet new friends and have meaningful conversations.",
         type: "website",
     },
+    icons: {
+        icon: [
+            { url: "/favicon.ico", sizes: "any" },
+            { url: "/icon.png", type: "image/png" },
+        ],
+        apple: { url: "/apple-icon.png", type: "image/png" },
+    },
 };
 
 export default function RootLayout({
